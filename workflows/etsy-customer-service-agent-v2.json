@@ -1,0 +1,1440 @@
+{
+  "name": "Etsy/Customer Service Agent v2",
+  "description": null,
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const chatInput = $json.chatInput || '';\nif (!chatInput.trim()) throw new Error('Empty message received');\n\nconst sessionId = $json.sessionId || ('session_' + Date.now());\n\nreturn [{\n  json: {\n    conversation_id: sessionId,\n    message_id: 'msg_' + Date.now(),\n    listing_id: null,\n    listing_title: null,\n    message_text: chatInput.trim(),\n    sender: sessionId,\n    timestamp: new Date().toISOString(),\n    shop_name: 'SpaceKiwi',\n    seller_name: 'Akriti'\n  }\n}];"
+      },
+      "id": "code-validate-002",
+      "name": "Validate & Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst input = $input.first().json;\n\nconst LISTINGS = {\n  'MUG-BLU-01': {\n    id: 'MUG-BLU-01', title: 'SpaceKiwi Earth Mug',\n    price: 18, category: 'Ceramics',\n    variants: ['Blue', 'Pink', 'Forest Green', 'Natural White'],\n    materials: 'Lead-free ceramic, food-safe glaze',\n    dimensions: '3.5\" diameter x 4\" tall, 12oz capacity',\n    processing_time: '2-3 business days',\n    description: 'Handmade ceramic mug with earthy glaze finish. Dishwasher safe.',\n    stock: { Blue: 12, Pink: 8, 'Forest Green': 5, 'Natural White': 15 }\n  },\n  'SHELF-NAT-01': {\n    id: 'SHELF-NAT-01', title: 'Reclaimed Pine Floating Shelf',\n    price: 145, category: 'Home Decor',\n    variants: ['Natural', 'Walnut Stain', 'White Wash'],\n    materials: 'Reclaimed pine wood, steel bracket',\n    dimensions: '24\" wide x 8\" deep x 1.5\" thick',\n    processing_time: '3-5 business days',\n    description: 'Rustic floating shelf made from reclaimed pine. Includes hidden wall bracket.',\n    stock: { Natural: 6, 'Walnut Stain': 4, 'White Wash': 3 }\n  },\n  'CNDL-LAV-01': {\n    id: 'CNDL-LAV-01', title: 'Hand-Poured Soy Candle',\n    price: 22, category: 'Candles',\n    variants: ['Lavender', 'Cedar & Sage', 'Citrus Bloom'],\n    materials: '100% soy wax, cotton wick, essential oils',\n    dimensions: '3\" diameter x 4\" tall, 8oz, ~45hr burn time',\n    processing_time: '1-2 business days',\n    description: 'Small-batch soy candle. Clean burn, no toxins.',\n    stock: { Lavender: 20, 'Cedar & Sage': 14, 'Citrus Bloom': 11 }\n  },\n  'PTRT-PET-01': {\n    id: 'PTRT-PET-01', title: 'Custom Pet Portrait',\n    price_range: '$45-$85', price: 45, category: 'Custom Art',\n    variants: ['Digital Only ($45)', 'Printed 5x7 ($65)', 'Printed 8x10 ($85)'],\n    materials: 'Digital illustration; prints on archival matte paper',\n    dimensions: 'Digital / 5x7\" / 8x10\"',\n    processing_time: '5-7 business days (custom)',\n    description: 'Hand-drawn digital pet portrait from your photo. Watercolour style.',\n    stock: { 'Digital Only': 999, 'Printed 5x7': 999, 'Printed 8x10': 999 }\n  },\n  'TOTE-ECO-01': {\n    id: 'TOTE-ECO-01', title: 'Organic Cotton Tote Bag',\n    price: 28, category: 'Bags',\n    variants: ['Natural', 'Black', 'Dusty Rose'],\n    materials: 'GOTS-certified organic cotton canvas, 12oz weight',\n    dimensions: '15\" wide x 16\" tall + 5\" gusset, 22\" handles',\n    processing_time: '1-2 business days',\n    description: 'Heavy-duty organic tote with SpaceKiwi logo stamp.',\n    stock: { Natural: 30, Black: 22, 'Dusty Rose': 18 }\n  },\n  'PLNT-POT-01': {\n    id: 'PLNT-POT-01', title: 'Handmade Ceramic Plant Pot',\n    price: 35, category: 'Ceramics',\n    variants: ['Terracotta', 'Sage Green', 'Cream'],\n    materials: 'Stoneware clay, food-safe glaze (drainage hole included)',\n    dimensions: '4\" diameter opening x 5\" tall',\n    processing_time: '2-3 business days',\n    description: 'Wheel-thrown pot with drainage hole. Pairs with 4\" nursery pots.',\n    stock: { Terracotta: 10, 'Sage Green': 7, Cream: 9 }\n  },\n  'WICK-SET-01': {\n    id: 'WICK-SET-01', title: 'Soy Candle Gift Set (3-pack)',\n    price: 58, category: 'Candles',\n    variants: ['Lavender + Cedar & Sage + Citrus Bloom'],\n    materials: '100% soy wax, cotton wick, kraft gift box',\n    dimensions: '3 x 4oz candles in gift box, ~25hr burn each',\n    processing_time: '1-2 business days',\n    description: 'Curated trio of our bestselling soy candles. Great gift set.',\n    stock: { 'Lavender + Cedar & Sage + Citrus Bloom': 12 }\n  },\n  'WRTH-DRY-01': {\n    id: 'WRTH-DRY-01', title: 'Dried Flower Wreath',\n    price: 65, category: 'Home Decor',\n    variants: ['Small 12\"', 'Large 18\"'],\n    materials: 'Dried pampas grass, eucalyptus, lavender, wire base',\n    dimensions: 'Small: 12\" diameter / Large: 18\" diameter',\n    processing_time: '2-4 business days',\n    description: 'Hand-assembled dried flower wreath. Each one is unique.',\n    stock: { 'Small 12\"': 8, 'Large 18\"': 5 }\n  }\n};\n\nconst ORDERS = [\n  { order_id: 'ORD-2025-001', customer: 'Emma Johnson',    email: 'emma.j@email.com',    date: '2025-01-15', status: 'Delivered',           items: [{ sku: 'MUG-BLU-01', variant: 'Blue',             qty: 2, price: 18 }], total: 36,   tracking: null,          notes: '' },\n  { order_id: 'ORD-2025-002', customer: 'Liam Chen',       email: 'liam.c@email.com',    date: '2025-01-22', status: 'Delivered',           items: [{ sku: 'MUG-BLU-01', variant: 'Pink',             qty: 1, price: 18 }], total: 18,   tracking: 'TRK982341',   notes: '' },\n  { order_id: 'ORD-2025-003', customer: 'Sofia Martinez',  email: 'sofia.m@email.com',   date: '2025-02-03', status: 'Delivered',           items: [{ sku: 'CNDL-LAV-01', variant: 'Lavender',        qty: 1, price: 22 }], total: 22,   tracking: null,          notes: '' },\n  { order_id: 'ORD-2025-004', customer: 'James Wilson',    email: 'james.w@email.com',   date: '2025-02-10', status: 'Exchange Requested',  items: [{ sku: 'SHELF-NAT-01', variant: 'Natural',        qty: 1, price: 145 }], total: 145, tracking: null,          notes: 'Customer wants Walnut Stain instead of Natural' },\n  { order_id: 'ORD-2025-005', customer: 'Aisha Patel',     email: 'aisha.p@email.com',   date: '2025-02-14', status: 'Processing',          items: [{ sku: 'PTRT-PET-01', variant: 'Printed 8x10',   qty: 1, price: 85 }], total: 85,   tracking: null,          notes: 'Custom pet portrait \u2014 awaiting artist review' },\n  { order_id: 'ORD-2025-006', customer: 'Noah Brown',      email: 'noah.b@email.com',    date: '2025-02-18', status: 'Delivered',           items: [{ sku: 'TOTE-ECO-01', variant: 'Black',           qty: 3, price: 28 }], total: 84,   tracking: null,          notes: '' },\n  { order_id: 'ORD-2025-007', customer: 'Isabella Davis',  email: 'isabella.d@email.com',date: '2025-02-20', status: 'Refund Requested',    items: [{ sku: 'WICK-SET-01', variant: 'Lavender + Cedar & Sage + Citrus Bloom', qty: 1, price: 58 }], total: 58, tracking: null, notes: 'Candle gift set arrived damaged \u2014 photo provided' },\n  { order_id: 'ORD-2025-008', customer: 'Ethan Garcia',    email: 'ethan.g@email.com',   date: '2025-03-01', status: 'Shipped',             items: [{ sku: 'PLNT-POT-01', variant: 'Sage Green',      qty: 2, price: 35 }], total: 70,   tracking: 'TRK443219',   notes: '' },\n  { order_id: 'ORD-2025-009', customer: 'Mia Thompson',    email: 'mia.t@email.com',     date: '2025-03-05', status: 'Delivered',           items: [{ sku: 'WRTH-DRY-01', variant: 'Large 18\"',       qty: 1, price: 65 }], total: 65,   tracking: null,          notes: '' },\n  { order_id: 'ORD-2025-010', customer: 'Oliver Moore',    email: 'oliver.m@email.com',  date: '2025-03-08', status: 'Shipped',             items: [{ sku: 'MUG-BLU-01', variant: 'Blue',             qty: 1, price: 18 }], total: 18,   tracking: 'TRK667823',   notes: '' },\n  { order_id: 'ORD-2025-011', customer: 'Charlotte White', email: 'charlotte.w@email.com',date: '2025-03-10',status: 'Delivered',           items: [{ sku: 'MUG-BLU-01', variant: 'Pink', qty: 1, price: 18 }, { sku: 'CNDL-LAV-01', variant: 'Lavender', qty: 1, price: 22 }], total: 40, tracking: null, notes: '' },\n  { order_id: 'ORD-2025-012', customer: 'Benjamin Lee',    email: 'ben.l@email.com',     date: '2025-03-12', status: 'Processing',          items: [{ sku: 'PTRT-PET-01', variant: 'Digital Only',    qty: 1, price: 45 }], total: 45,   tracking: null,          notes: 'Custom order in progress' },\n  { order_id: 'ORD-2025-013', customer: 'Amelia Harris',   email: 'amelia.h@email.com',  date: '2025-03-13', status: 'Delivered',           items: [{ sku: 'TOTE-ECO-01', variant: 'Dusty Rose',      qty: 2, price: 28 }], total: 56,   tracking: null,          notes: '' },\n  { order_id: 'ORD-2025-014', customer: 'Lucas Clark',     email: 'lucas.c@email.com',   date: '2025-03-14', status: 'Cancelled',           items: [{ sku: 'WICK-SET-01', variant: 'Lavender + Cedar & Sage + Citrus Bloom', qty: 1, price: 58 }], total: 58, tracking: null, notes: 'Cancelled within 2hr window \u2014 full refund issued' },\n  { order_id: 'ORD-2025-015', customer: 'Harper Lewis',    email: 'harper.l@email.com',  date: '2025-03-15', status: 'Delivered',           items: [{ sku: 'MUG-BLU-01', variant: 'Pink',             qty: 1, price: 18 }], total: 18,   tracking: null,          notes: 'Customer enquired about exchanging for Blue variant' },\n  { order_id: 'ORD-2025-016', customer: 'Mason Robinson',  email: 'mason.r@email.com',   date: '2025-03-17', status: 'Shipped',             items: [{ sku: 'PLNT-POT-01', variant: 'Cream',           qty: 1, price: 35 }], total: 35,   tracking: 'TRK991234',   notes: '' },\n  { order_id: 'ORD-2025-017', customer: 'Evelyn Walker',   email: 'evelyn.w@email.com',  date: '2025-03-18', status: 'Processing',          items: [{ sku: 'MUG-BLU-01', variant: 'Blue', qty: 1, price: 18 }, { sku: 'TOTE-ECO-01', variant: 'Natural', qty: 1, price: 28 }], total: 46, tracking: null, notes: '' },\n  { order_id: 'ORD-2025-018', customer: 'Logan Hall',      email: 'logan.h@email.com',   date: '2025-03-19', status: 'Delivered',           items: [{ sku: 'CNDL-LAV-01', variant: 'Lavender',        qty: 2, price: 22 }], total: 44,   tracking: null,          notes: '' },\n  { order_id: 'ORD-2025-019', customer: 'Abigail Young',   email: 'abigail.y@email.com', date: '2025-03-20', status: 'Delivered',           items: [{ sku: 'WRTH-DRY-01', variant: 'Small 12\"',       qty: 1, price: 65 }], total: 65,   tracking: null,          notes: '' },\n  { order_id: 'ORD-2025-020', customer: 'Jackson King',    email: 'jackson.k@email.com', date: '2025-03-21', status: 'Delivered',           items: [{ sku: 'MUG-BLU-01', variant: 'Pink',             qty: 1, price: 18 }], total: 18,   tracking: null,          notes: 'Delivered 2 days ago \u2014 within 30-day return/exchange window' },\n];\n\n// Lookup listing by listing_id from previous node\nconst listingId = input.listing_id;\nlet listing_context = null;\nif (listingId && LISTINGS[listingId]) {\n  listing_context = LISTINGS[listingId];\n} else if (input.listing_title) {\n  // fuzzy match by title keyword\n  const keyword = input.listing_title.toLowerCase();\n  for (const [, l] of Object.entries(LISTINGS)) {\n    if (l.title.toLowerCase().includes(keyword)) { listing_context = l; break; }\n  }\n}\n\nreturn [{\n  json: {\n    ...input,\n    listing_context,\n    all_listings: LISTINGS,\n    orders: ORDERS\n  }\n}];\n"
+      },
+      "id": "code-listing-003",
+      "name": "Fetch Listing Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1520,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/YOUR_GOOGLE_DOCS_DOCUMENT_ID/edit"
+      },
+      "id": "gdocs-faq-004",
+      "name": "Fetch FAQ and Policies",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        208
+      ],
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "Qx8cXcPCcpPY1Pit",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Fetch Listing Context').first().json;\nconst faqNode = $('Fetch FAQ and Policies').first().json;\nlet historyItems = [];\ntry { historyItems = $('Load Conversation History').all(); } catch(e) {}\n\nconst faqContent = faqNode.content || faqNode.faq_content || 'Shop policies not available.';\n\nconst historyLines = historyItems\n  .filter(item => item.json && item.json['Conversation ID'] === data.conversation_id)\n  .slice(-10)\n  .map(item => {\n    const msg = item.json['Message'] || '';\n    const resp = item.json['Draft Response/Our Response'] || '';\n    return '[customer] ' + msg + (resp ? '\\n[agent] ' + resp : '');\n  })\n  .join('\\n');\n\nconst orders = data.orders || [];\nconst today = new Date();\nconst ordersText = orders.map(o => {\n  const orderDate = new Date(o.date);\n  const daysSince = Math.floor((today - orderDate) / (1000 * 60 * 60 * 24));\n  const withinWindow = daysSince <= 30 ? ' [WITHIN 30-DAY WINDOW]' : ' [OUTSIDE 30-DAY WINDOW]';\n  const itemsList = o.items.map(i => `${i.qty}x ${i.variant} ${(data.all_listings[i.sku] || {}).title || i.sku} ($${i.price})`).join(', ');\n  const trackingStr = o.tracking ? ` | Tracking: ${o.tracking}` : '';\n  const notesStr = o.notes ? ` | Note: ${o.notes}` : '';\n  return `${o.order_id} | ${o.customer} | ${o.date}${withinWindow} | Status: ${o.status} | Items: ${itemsList} | Total: $${o.total}${trackingStr}${notesStr}`;\n}).join('\\n');\n\nlet listingText;\nif (data.listing_context) {\n  const l = data.listing_context;\n  listingText = `Title: ${l.title}\\nSKU: ${l.id}\\nPrice: $${l.price}\\nVariants: ${l.variants.join(', ')}\\nMaterials: ${l.materials}\\nDimensions: ${l.dimensions}\\nProcessing time: ${l.processing_time}\\nDescription: ${l.description}`;\n} else {\n  const allListings = data.all_listings || {};\n  const summary = Object.values(allListings).map(l =>\n    `\u2022 ${l.title} ($${l.price || l.price_range}) \u2014 Variants: ${l.variants.join(', ')} | Processing: ${l.processing_time}`\n  ).join('\\n');\n  listingText = 'No specific listing. All SpaceKiwi products:\\n' + summary;\n}\n\nconst classificationRequest = {\n  model: 'claude-haiku-4-5-20251001',\n  max_tokens: 1400,\n  temperature: 0,\n  system: 'You are an expert customer service AI for SpaceKiwi, an Etsy handmade goods shop run by Akriti. Analyze customer messages and identify ALL intents. Be conservative: when in doubt, escalate to a human rather than auto-reply.',\n  messages: [{\n    role: 'user',\n    content: `# CUSTOMER MESSAGE\\n\"${data.message_text}\"\\n\\n# PRODUCT CONTEXT\\n${listingText}\\n\\n# SHOP POLICIES & FAQ\\n${faqContent}\\n\\n# ORDER HISTORY\\n${ordersText}\\n\\n# CONVERSATION HISTORY (context only)\\n${historyLines || 'No previous messages.'}\\n\\n# TASK\\nReturn a JSON object with these exact fields:\\n{\\n  \"intents\": [{\"type\": \"Damage|Complaint|Refund|RushOrder|Shipping|Returns|Tracking|ProductQuestion|SimpleFAQ|CustomOrder|Exchange|Positive\", \"priority\": \"HIGH|MEDIUM|LOW\", \"description\": \"what customer is asking NOW\", \"answerable_from_context\": true/false}],\\n  \"primary_priority\": \"HIGH|MEDIUM|LOW\",\\n  \"recommended_action\": \"immediate_alert|batch_review|auto_respond|escalate\",\\n  \"sentiment\": \"Positive|Neutral|Negative|Angry\",\\n  \"risk_level\": \"Revenue|Reputational|Standard|Low\",\\n  \"confidence\": 0-100,\\n  \"auto_respond_safe\": boolean,\\n  \"financial_topic\": boolean,\\n  \"reasoning\": \"step-by-step analysis\",\\n  \"suggested_response\": \"complete draft reply for all priority levels \u2014 label HIGH/MEDIUM drafts as for human review\",\\n  \"partial_auto_response\": \"see rule below\",\\n  \"revenue_opportunity\": \"brief note if revenue potential exists, else empty string\"\\n}\\n\\n# RULES\\n\\n## Priority\\n- RushOrder: customer mentions deadline, occasion (birthday, wedding, anniversary, event), or urgency (rush, ASAP, urgent, need it by, by Friday) in the CURRENT message \u2192 ALWAYS HIGH\\n- HIGH: RushOrder, damage claims, refund disputes, angry/negative tone, reputational risk\\n- MEDIUM: exchange requests, returns, order status, custom orders, tracking\\n- LOW: simple FAQ, product questions fully answered from product context or FAQ\\n\\n## Current message vs conversation history\\n- Classify intents based ONLY on what the customer is explicitly asking in the CURRENT message\\n- History is context \u2014 it must NOT inflate the priority of the current message's intents\\n- A ProductQuestion or SimpleFAQ stays LOW even if history has a pending RushOrder, UNLESS the current message itself uses urgency language or directly re-raises the urgent issue (e.g. \"still waiting\", \"I need to know now\")\\n\\n## partial_auto_response rule\\n- Set this field to an immediate answer for any intent where answerable_from_context=true AND priority is not HIGH\\n- This applies even when recommended_action=immediate_alert (mixed-intent case)\\n- Use ONLY verified product/FAQ info \u2014 no guessing\\n- Example: message has RushOrder(HIGH) + ProductQuestion(MEDIUM, answerable) \u2192 partial_auto_response = \"The mug comes in Blue, Pink, Forest Green, and Natural White\"\\n- Empty string if no answerable non-HIGH intents exist\\n\\n## Auto-respond\\n- auto_respond_safe=true when ALL intents in the CURRENT message are LOW AND confidence>=95 AND financial_topic=false AND no Damage/Complaint/Refund/Exchange intents\\n- FOLLOW-UP RULE: if the current message is all LOW priority AND fully answerable from context, set recommended_action=auto_respond and auto_respond_safe=true EVEN IF conversation history contains HIGH priority issues \u2014 the store owner is already handling the urgent matter, do not send them simple FAQ follow-ups too\\n- If primary_priority=HIGH: recommended_action is ALWAYS immediate_alert \u2014 never escalate a HIGH priority message regardless of confidence\n- If confidence < 80% AND primary_priority is MEDIUM or LOW: recommended_action=escalate\\n- Never auto-respond to financial topics\\n\\n## Output\\n- Return ONLY valid JSON, no markdown fences`\n  }]\n};\n\nreturn [{\n  json: {\n    ...data,\n    faq_content: faqContent,\n    conversation_history: historyLines || 'No previous messages.',\n    claude_request: classificationRequest\n  }\n}];"
+      },
+      "id": "code-context-006",
+      "name": "Build AI Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.claude_request }}",
+        "options": {}
+      },
+      "id": "http-claude-classify-007",
+      "name": "Claude: Classify Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -560,
+        208
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "anthropicApi": {
+          "id": "X0Y1wXDDNrQLWmTI",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst originalData = $('Build AI Context').first().json;\nlet classification;\ntry {\n  const rawText = response.content?.[0]?.text || '';\n  const cleaned = rawText.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '').trim();\n  classification = JSON.parse(cleaned);\n} catch(e) {\n  classification = {\n    intents: [{ type: 'Unknown', priority: 'HIGH', description: 'Parse error \u2014 needs human review', answerable_from_context: false }],\n    primary_priority: 'HIGH',\n    recommended_action: 'escalate',\n    sentiment: 'Neutral',\n    risk_level: 'Standard',\n    confidence: 0,\n    auto_respond_safe: false,\n    financial_topic: false,\n    reasoning: 'Failed to parse AI response: ' + e.message,\n    suggested_response: ''\n  };\n}\n\n// Clamp recommended_action to valid values\nconst validActions = ['immediate_alert','batch_review','auto_respond','escalate'];\nif (!validActions.includes(classification.recommended_action)) {\n  const allLow = classification.intents && classification.intents.every(i => i.priority === 'LOW');\n  classification.recommended_action = (allLow && classification.confidence >= 80) ? 'auto_respond' : 'escalate';\n}\n// HIGH priority always overrides to immediate_alert \u2014 never escalate a high-priority message on low confidence\nif (classification.primary_priority === 'HIGH') {\n  classification.recommended_action = 'immediate_alert';\n}\n// Sync auto_respond_safe with actual action\nif (classification.recommended_action !== 'auto_respond') {\n  classification.auto_respond_safe = false;\n}\n// Hard safety overrides\nif (classification.financial_topic || classification.risk_level === 'Revenue' || classification.risk_level === 'Reputational') {\n  classification.auto_respond_safe = false;\n}\nreturn [{ json: { ...originalData, classification, processed_at: new Date().toISOString() } }];"
+      },
+      "id": "code-parse-class-008",
+      "name": "Parse Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEETS_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Etsy Message Queue",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEETS_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEETS_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Message ID": "={{ $json.message_id }}",
+            "Priority": "={{ $json.classification.primary_priority }}",
+            "Listing": "={{ $json.listing_context ? $json.listing_context.title : ($json.listing_title || 'N/A') }}",
+            "Message": "={{ $json.message_text }}",
+            "Category": "={{ $json.classification.intents.map(function(i){ return i.type; }).join(', ') }}",
+            "Sentiment": "={{ $json.classification.sentiment }}",
+            "Confidence": "={{ $json.classification.confidence }}",
+            "Timestamp": "={{ $json.processed_at }}",
+            "Status": "={{ $json.classification.recommended_action }}",
+            "Draft Response/Our Response": "={{ $json.classification.suggested_response }}",
+            "Financial Topic": "={{ $json.classification.financial_topic }}",
+            "Conversation ID": "={{ $json.conversation_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message ID",
+              "displayName": "Message ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Listing",
+              "displayName": "Listing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sentiment",
+              "displayName": "Sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Draft Response/Our Response",
+              "displayName": "Draft Response/Our Response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Financial Topic",
+              "displayName": "Financial Topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Conversation ID",
+              "displayName": "Conversation ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "gsheets-audit-010",
+      "name": "Log to Audit Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        160,
+        208
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "0RGvLOLsXlcFabcX",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "rule-high",
+                    "leftValue": "={{ $json.classification.recommended_action }}",
+                    "rightValue": "immediate_alert",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Immediate Alert"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "rule-medium",
+                    "leftValue": "={{ $json.classification.recommended_action }}",
+                    "rightValue": "batch_review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Batch Review"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "rule-auto",
+                    "leftValue": "={{ $json.classification.recommended_action }}",
+                    "rightValue": "auto_respond",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Auto Respond"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "switch-route-011",
+      "name": "Route by Priority",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        208
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst c = data.classification;\nconst intentList = c.intents.map(i => '  \u2022 ' + i.type + ' (' + i.priority + '): ' + i.description).join('\\n');\nconst revenueNote = c.revenue_opportunity ? ('\\n\\n\ud83d\udcb0 *Revenue Opportunity:*\\n' + c.revenue_opportunity) : '';\nconst draftBlock = c.suggested_response\n  ? '\\n\\n*Draft Reply (review before sending):*\\n\"' + c.suggested_response + '\"'\n  : '\\n\\n*No draft available \u2014 compose reply manually*';\nreturn [{\n  json: {\n    ...data,\n    slack_text: '\ud83d\udea8 *Urgent \u2014 Action Required Within 1 Hour*\\n\\n*From:* ' + data.sender + '\\n*Listing:* ' + (data.listing_context && data.listing_context.title ? data.listing_context.title : (data.listing_title || 'Not specified')) + '\\n*Sentiment:* ' + c.sentiment + '  |  *Confidence:* ' + c.confidence + '%' + revenueNote + '\\n\\n*Why urgent:*\\n' + intentList + '\\n\\n*Customer Message:*\\n\"' + data.message_text + '\"\\n\\n*AI Reasoning:*\\n' + c.reasoning + draftBlock + '\\n\\n*Next action:* Respond to customer within 1 hour\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n_Conversation ID: ' + data.conversation_id + '_'\n  }\n}];"
+      },
+      "id": "code-format-high-012",
+      "name": "Format HIGH Priority Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#YOUR_SLACK_CHANNEL",
+          "mode": "name"
+        },
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {}
+      },
+      "id": "slack-high-013",
+      "name": "Slack: HIGH Priority Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        880,
+        -400
+      ],
+      "webhookId": "YOUR_WEBHOOK_ID_1",
+      "credentials": {
+        "slackApi": {
+          "id": "BtDNFA0GhusaRnMD",
+          "name": "Slack account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst c = data.classification;\nconst intentSummary = c.intents.map(i => '- ' + i.type + ': ' + i.description).join('\\n');\nconst systemPrompt = 'You are a warm, professional customer service specialist for ' + (data.shop_name || 'SpaceKiwi') + ', a premium Etsy handmade goods shop. Write personalized responses that reflect the shop\\'s artisan quality. Never invent product details.';\nconst userPrompt = 'Write a personalized draft response to this Etsy customer (for human review before sending).\\n\\nCustomer message: \"' + data.message_text + '\"\\n\\nDetected intents:\\n' + intentSummary + '\\n\\nProduct info:\\n' + JSON.stringify(data.listing_context || {}, null, 2) + '\\n\\nConversation history:\\n' + (data.conversation_history || 'No prior messages.') + '\\n\\nRequirements:\\n- Address ALL detected intents\\n- Use only verified product info\\n- Warm, personal tone\\n- 100-150 words max\\n- Sign as \"' + (data.seller_name || 'Akriti') + ', ' + (data.shop_name || 'SpaceKiwi') + '\"\\n- Start response with [DRAFT - REVIEW BEFORE SENDING]';\nreturn [{\n  json: {\n    ...data,\n    draft_request: {\n      model: 'claude-sonnet-4-6',\n      max_tokens: 512,\n      temperature: 0.3,\n      system: systemPrompt,\n      messages: [{ role: 'user', content: userPrompt }]\n    }\n  }\n}];"
+      },
+      "id": "code-build-draft-015",
+      "name": "Build Draft Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.draft_request }}",
+        "options": {}
+      },
+      "id": "http-claude-draft-016",
+      "name": "Claude: Generate Draft Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        880,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "anthropicApi": {
+          "id": "X0Y1wXDDNrQLWmTI",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst originalData = $('Build Draft Request').first().json;\nconst c = originalData.classification;\nconst draftText = response.content?.[0]?.text || '[Draft generation failed \u2014 manual response required]';\nconst intentList = c.intents.map(i => '  \u2022 ' + i.type + ' (' + i.priority + '): ' + i.description).join('\\n');\nreturn [{\n  json: {\n    ...originalData,\n    draft_response: draftText,\n    slack_text: ':memo: *Batch Review \u2014 Customer Message*\\n\\n*From:* ' + originalData.sender + '\\n*Listing:* ' + (originalData.listing_context?.title || 'N/A') + '\\n*Sentiment:* ' + c.sentiment + '  |  *Confidence:* ' + c.confidence + '%\\n\\n*Intents Detected:*\\n' + intentList + '\\n\\n*Customer Message:*\\n\"' + originalData.message_text + '\"\\n\\n*AI Draft Response (REVIEW BEFORE SENDING):*\\n' + draftText + '\\n\\n*Action:* Review and send within 24 hours\\n\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n_Conversation ID: ' + originalData.conversation_id + '_'\n  }\n}];"
+      },
+      "id": "code-format-batch-017",
+      "name": "Format Batch Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#YOUR_SLACK_CHANNEL",
+          "mode": "name"
+        },
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {}
+      },
+      "id": "slack-medium-018",
+      "name": "Slack: Batch Review Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1360,
+        0
+      ],
+      "webhookId": "YOUR_WEBHOOK_ID_2",
+      "credentials": {
+        "slackApi": {
+          "id": "BtDNFA0GhusaRnMD",
+          "name": "Slack account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "safety-auto-safe",
+              "leftValue": "={{ $json.classification.auto_respond_safe }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "safety-confidence",
+              "leftValue": "={{ $json.classification.confidence }}",
+              "rightValue": 95,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "safety-no-financial",
+              "leftValue": "={{ $json.classification.financial_topic }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-safety-gate-020",
+      "name": "Safety Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        640,
+        400
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst c = data.classification;\nconst intentSummary = c.intents.map(i => '- ' + i.type + ': ' + i.description).join('\\n');\n\nlet productContext;\nif (data.listing_context) {\n  productContext = JSON.stringify(data.listing_context, null, 2);\n} else {\n  const allListings = data.all_listings || {};\n  const summary = Object.values(allListings).map(l =>\n    `${l.title} \u2014 Variants: ${l.variants.join(', ')} | Price: $${l.price || l.price_range} | Processing: ${l.processing_time}`\n  ).join('\\n');\n  productContext = 'No specific listing. All SpaceKiwi products:\\n' + summary;\n}\n\nconst systemPrompt = 'You are a customer service agent for ' + (data.shop_name || 'SpaceKiwi') + ', an Etsy handmade goods shop. Your ONLY job is to answer questions using the exact information provided to you. If the answer is not explicitly stated in the product info or FAQ, you MUST respond with exactly: CANNOT_AUTO_RESPOND';\nconst userPrompt = 'Answer this customer message using ONLY the provided context.\\n\\nCustomer message: \"' + data.message_text + '\"\\n\\nDetected intents:\\n' + intentSummary + '\\n\\nProduct info:\\n' + productContext + '\\n\\nFAQ and shop policies:\\n' + (data.faq_content || '') + '\\n\\nPrevious conversation:\\n' + (data.conversation_history || 'No prior messages.') + '\\n\\nRULES (strictly follow):\\n1. If the exact answer is in the FAQ or product info above, answer it directly and confidently\\n2. If you have ANY doubt or the answer is not explicitly in the context, respond with ONLY: CANNOT_AUTO_RESPOND\\n3. Never hedge, never say \"I\\'m not sure\", never ask the customer to check elsewhere\\n4. Max 100 words\\n5. Sign as \"Best regards, ' + (data.seller_name || 'Akriti') + ', ' + (data.shop_name || 'SpaceKiwi') + '\"\\n\\nRespond with CANNOT_AUTO_RESPOND or a complete confident answer \u2014 nothing in between.';\nreturn [{\n  json: {\n    ...data,\n    auto_reply_request: {\n      model: 'claude-sonnet-4-6',\n      max_tokens: 512,\n      temperature: 0,\n      system: systemPrompt,\n      messages: [{ role: 'user', content: userPrompt }]\n    }\n  }\n}];"
+      },
+      "id": "code-build-reply-021",
+      "name": "Build Auto-Reply Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.auto_reply_request }}",
+        "options": {}
+      },
+      "id": "http-claude-reply-022",
+      "name": "Claude: Generate Auto-Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "anthropicApi": {
+          "id": "X0Y1wXDDNrQLWmTI",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst originalData = $('Build Auto-Reply Request').first().json;\nconst replyText = response.content?.[0]?.text?.trim() || 'CANNOT_AUTO_RESPOND';\nconst cannotRespond = replyText === 'CANNOT_AUTO_RESPOND' || replyText.includes('CANNOT_AUTO_RESPOND');\nreturn [{\n  json: {\n    ...originalData,\n    auto_reply: replyText,\n    cannot_auto_respond: cannotRespond,\n    auto_reply_sent_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "code-parse-reply-023",
+      "name": "Parse Auto-Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst c = data.classification;\nconst intentList = c.intents ? c.intents.map(i => '  \u2022 ' + i.type + ' (' + i.priority + '): ' + i.description).join('\\n') : '  \u2022 Intent detection failed';\nconst reason = c.recommended_action === 'escalate'\n  ? 'Low confidence (' + c.confidence + '%) \u2014 AI unable to determine safe action'\n  : 'Auto-reply safety checks failed (financial topic or high-risk category detected)';\nreturn [{\n  json: {\n    ...data,\n    slack_text: ':warning: *Escalation Required*\\n\\n*Reason:* ' + reason + '\\n*From:* ' + data.sender + '\\n*Sentiment:* ' + c.sentiment + '  |  *Risk:* ' + c.risk_level + '\\n\\n*Intents Detected:*\\n' + intentList + '\\n\\n*Customer Message:*\\n\"' + data.message_text + '\"\\n\\n*AI Reasoning:*\\n' + c.reasoning + '\\n\\n*Action Required:* Human response needed \u2014 do NOT auto-reply\\n\\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\\n_Conversation ID: ' + data.conversation_id + '_'\n  }\n}];"
+      },
+      "id": "code-format-escalation-025",
+      "name": "Format Escalation Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#YOUR_SLACK_CHANNEL",
+          "mode": "name"
+        },
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {}
+      },
+      "id": "slack-escalation-026",
+      "name": "Slack: Escalation Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        560
+      ],
+      "webhookId": "YOUR_WEBHOOK_ID_3",
+      "credentials": {
+        "slackApi": {
+          "id": "BtDNFA0GhusaRnMD",
+          "name": "Slack account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-028",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2000,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json;\nreturn [{\n  json: {\n    slack_text: ':x: *Workflow Error \u2014 Etsy Customer Service Agent v2*\\n\\n*Workflow:* ' + (error.workflow?.name || 'Etsy/Customer Service Agent v2') + '\\n*Failed Node:* ' + (error.execution?.lastNodeExecuted || 'Unknown') + '\\n*Error:* ' + (error.execution?.error?.message || JSON.stringify(error.execution?.error) || 'Unknown error') + '\\n*Timestamp:* ' + new Date().toISOString() + '\\n\\n*Action Required:* Check n8n execution log at http://localhost:5678'\n  }\n}];"
+      },
+      "id": "code-format-error-029",
+      "name": "Format Error Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#YOUR_SLACK_CHANNEL",
+          "mode": "name"
+        },
+        "text": "={{ $json.slack_text }}",
+        "otherOptions": {}
+      },
+      "id": "slack-error-030",
+      "name": "Slack: Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        -1520,
+        800
+      ],
+      "webhookId": "YOUR_WEBHOOK_ID_4",
+      "credentials": {
+        "slackApi": {
+          "id": "BtDNFA0GhusaRnMD",
+          "name": "Slack account 2"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Setup Required\n\n**1. Anthropic API credential**\nCreate credential: Settings \u2192 Credentials \u2192 New \u2192 Anthropic API\nName it exactly: `Anthropic API`\n\n**2. ConversationHistory sheet**\nIn your Google Sheets spreadsheet, add a second tab named `ConversationHistory` with columns:\n`conversation_id | message_id | role | message_text | timestamp | primary_intent | action_taken`\n\n**3. Environment variables** (optional, has defaults)\nIn Docker `.env`:\n```\nETSY_SHOP_NAME=SpaceKiwi\nETSY_SELLER_NAME=Akriti\n```\n\n**4. Webhook URL**\nAfter activating, POST to:\n`http://localhost:5678/webhook/etsy-customer-message`\n\n**Payload format:**\n```json\n{\n  \"message_text\": \"Is this dishwasher safe?\",\n  \"sender\": \"buyer_123\",\n  \"listing_id\": \"1234567890\",\n  \"conversation_id\": \"conv_buyer_123_session1\"\n}\n```\n`conversation_id` is optional \u2014 auto-generated if omitted.",
+        "height": 420,
+        "width": 520,
+        "color": 4
+      },
+      "id": "sticky-setup-031",
+      "name": "Setup Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        -336
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEETS_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Etsy Message Queue"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEETS_SPREADSHEET_ID/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "gsheets-history-005",
+      "name": "Load Conversation History",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1040,
+        208
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "0RGvLOLsXlcFabcX",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-cannot-respond",
+              "leftValue": "={{ $json.cannot_auto_respond }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-reply-confident-033",
+      "name": "Check Reply Confidence",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1600,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEETS_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Etsy Message Queue",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEETS_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEETS_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Message ID": "={{ $json.message_id }}",
+            "Priority": "={{ $json.classification.primary_priority }}",
+            "Listing": "={{ $json.listing_context ? $json.listing_context.title : 'N/A' }}",
+            "Message": "={{ $json.message_text }}",
+            "Category": "={{ $json.classification.intents.map(function(i){ return i.type; }).join(', ') }}",
+            "Sentiment": "={{ $json.classification.sentiment }}",
+            "Confidence": "={{ $json.classification.confidence }}",
+            "Timestamp": "={{ $json.auto_reply_sent_at }}",
+            "Status": "Needs Manual Review (AI Uncertain)",
+            "Draft Response/Our Response": "={{ $json.auto_reply }}",
+            "Financial Topic": "={{ $json.classification.financial_topic }}",
+            "Conversation ID": "={{ $json.conversation_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message ID",
+              "displayName": "Message ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority",
+              "displayName": "Priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Listing",
+              "displayName": "Listing",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sentiment",
+              "displayName": "Sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence",
+              "displayName": "Confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Draft Response/Our Response",
+              "displayName": "Draft Response/Our Response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Financial Topic",
+              "displayName": "Financial Topic",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Conversation ID",
+              "displayName": "Conversation ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "gsheets-uncertain-034",
+      "name": "Log Uncertain Auto-Reply",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1840,
+        448
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "0RGvLOLsXlcFabcX",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hi! I'm the SpaceKiwi customer service assistant. How can I help you today? \ud83d\ude0a\n\nFeel free to ask about shipping, products, custom orders, or anything else!",
+        "options": {}
+      },
+      "id": "chat-trigger-001",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -2000,
+        208
+      ],
+      "webhookId": "YOUR_CHAT_TRIGGER_WEBHOOK_ID"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat-out-high",
+              "name": "output",
+              "value": "={{ $('Format HIGH Priority Alert').first().json.classification.partial_auto_response ? ($('Format HIGH Priority Alert').first().json.classification.partial_auto_response + '\\n\\n\\u{1F6A8} Akriti has been alerted about your urgent request and will personally respond within 1 hour.') : '\\u{1F6A8} Your message has been flagged as urgent and Akriti has been alerted immediately. She will personally respond within 1 hour. Thank you for your patience!' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-chat-high-036",
+      "name": "Chat Response: Alert Sent",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat-out-medium",
+              "name": "output",
+              "value": "\ud83d\udcdd Thanks for reaching out! Your message has been added to our review queue and Akriti will respond with a personalised answer within 24 hours.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-chat-medium-037",
+      "name": "Chat Response: Queued for Review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat-out-auto",
+              "name": "output",
+              "value": "={{ $json.auto_reply }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-chat-auto-038",
+      "name": "Chat Response: Auto-Reply Sent",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1840,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat-out-escalate",
+              "name": "output",
+              "value": "={{ $('Format Escalation Alert').first().json.classification.partial_auto_response ? ($('Format Escalation Alert').first().json.classification.partial_auto_response + '\\n\\nYour question has been passed to Akriti for a personal response. You\\'ll hear back within 24 hours!') : 'Your message has been passed to our team for a personalised response. We\\'ll be in touch shortly!' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-chat-escalated-039",
+      "name": "Chat Response: Escalated",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1360,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat-out-uncertain",
+              "name": "output",
+              "value": "Great question! We want to make sure we give you the most accurate answer, so we've passed this to Akriti for a personal response. You'll hear back within 24 hours!",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-chat-uncertain-040",
+      "name": "Chat Response: Logged for Review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        448
+      ]
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "Validate & Parse Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Parse Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Listing Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Listing Context": {
+      "main": [
+        [
+          {
+            "node": "Fetch FAQ and Policies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch FAQ and Policies": {
+      "main": [
+        [
+          {
+            "node": "Load Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Build AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build AI Context": {
+      "main": [
+        [
+          {
+            "node": "Claude: Classify Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Classify Message": {
+      "main": [
+        [
+          {
+            "node": "Parse Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Classification": {
+      "main": [
+        [
+          {
+            "node": "Log to Audit Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route by Priority",
+            "type": "0",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Priority": {
+      "main": [
+        [
+          {
+            "node": "Format HIGH Priority Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Draft Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Safety Gate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Escalation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format HIGH Priority Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack: HIGH Priority Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: HIGH Priority Alert": {
+      "main": [
+        [
+          {
+            "node": "Chat Response: Alert Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Draft Request": {
+      "main": [
+        [
+          {
+            "node": "Claude: Generate Draft Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Generate Draft Response": {
+      "main": [
+        [
+          {
+            "node": "Format Batch Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Batch Review": {
+      "main": [
+        [
+          {
+            "node": "Slack: Batch Review Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: Batch Review Notification": {
+      "main": [
+        [
+          {
+            "node": "Chat Response: Queued for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safety Gate": {
+      "main": [
+        [
+          {
+            "node": "Build Auto-Reply Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Escalation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Auto-Reply Request": {
+      "main": [
+        [
+          {
+            "node": "Claude: Generate Auto-Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude: Generate Auto-Reply": {
+      "main": [
+        [
+          {
+            "node": "Parse Auto-Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Auto-Reply": {
+      "main": [
+        [
+          {
+            "node": "Check Reply Confidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Reply Confidence": {
+      "main": [
+        [
+          {
+            "node": "Chat Response: Auto-Reply Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Uncertain Auto-Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Uncertain Auto-Reply": {
+      "main": [
+        [
+          {
+            "node": "Chat Response: Logged for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Escalation Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack: Escalation Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack: Escalation Alert": {
+      "main": [
+        [
+          {
+            "node": "Chat Response: Escalated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Error Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack: Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "lPhoBKDlhKnFtjdG",
+    "timezone": "America/New_York",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "tags": []
+}

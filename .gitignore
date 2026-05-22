@@ -1,0 +1,7 @@
+# n8n secrets — never commit real credentials
+.mcp.json
+.env
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/
